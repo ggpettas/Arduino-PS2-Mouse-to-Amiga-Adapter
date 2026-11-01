@@ -4,7 +4,7 @@ Connect a PS2 (or compatible USB Mouse) to an Amiga
 
 ## You will need:
 
-  - Arduino (Nano/Uno/Mini/...)
+  - Arduino (Nano/Uno/Mini/...). I used Pro Mini Atmega328P compatible
   - PS2 Mouse (or USB mouse that can be used with an usb-to-ps2 adapter)
   - Female DSub9 (to plug into the Amiga)
   
