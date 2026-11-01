@@ -8,9 +8,6 @@
  *   https://github.com/cssvb94/AmigaUSBMouseJoystick
  *   
  * 
- * 
- * 
- * 
  * Data from PS2-Mouse:
  * 
  * data0[2:1:0]  ->  middle,right, left mousebutton
@@ -39,278 +36,101 @@
  * 8  GND
  * 9  BUTTON 2 (Right)
  * 
- * 
- * 
- * 
- * 
  */
 
- 
-
+#include <avr/io.h>
+#include <util/delay.h>
 #include <PS2Mouse.h>
 
-#define MOUSE_DATA  12
-#define MOUSE_CLOCK 11
+// Pin Definitions (ATmega328P / Arduino Uno)
+// PS/2 Pins (PORTB)
+#define MOUSE_DATA_PIN   12  // PB4 (Pin 12)
+#define MOUSE_CLOCK_PIN  11  // PB3 (Pin 11)
 
-PS2Mouse mouse(MOUSE_CLOCK, MOUSE_DATA, STREAM);
+// Amiga Pulses & Buttons (PORTD & PORTB)
+// V_PULSE: PD2 (Pin 2)
+// H_PULSE: PD3 (Pin 3)
+// VQ_PLSE: PD4 (Pin 4)
+// HQ_PLSE: PD5 (Pin 5)
+// LMB:     PD6 (Pin 6)
+// RMB:     PD7 (Pin 7)
+// MMB:     PB0 (Pin 8)
 
-
-
-// quadrature encoding used by the amiga mouse protocol
-//
-uint8_t H[4]  = { LOW, LOW, HIGH, HIGH};
-uint8_t HQ[4] = { LOW, HIGH, HIGH, LOW};
+PS2Mouse mouse(MOUSE_CLOCK_PIN, MOUSE_DATA_PIN, STREAM);
 
 uint8_t QX = 3;
 uint8_t QY = 3;
 
-uint8_t XSTEPS;
-uint8_t YSTEPS;
-uint8_t XSIGN;
-uint8_t YSIGN;
-
-
-
-#define ADELAY  150
-
-
-
-// pins from amiga-port to arduino 
-//
-#define V_PULSE  2
-#define H_PULSE  3
-#define VQ_PLSE  4
-#define HQ_PLSE  5
-
-#define LMB      6
-#define RMB      7
-#define MMB      8
-
-
-
-// MB handling
-//
-void LeftButtonUp() {
-    digitalWrite(LMB, HIGH);
-}
-void LeftButtonDown() {
-    digitalWrite(LMB, LOW);
-}
-
-void RightButtonUp() {
-    digitalWrite(RMB, HIGH);
-}
-void RightButtonDown() {
-    digitalWrite(RMB, LOW);
-}
-
-void MiddleButtonUp() {
-    digitalWrite(MMB, HIGH);
-}
-void MiddleButtonDown() {
-    digitalWrite(MMB, LOW);
-}
-
-
-
-// x/y handling
-//
-void AMIGAHorizontalMove() {
-  
-    // set bits acc. to curr. position in quadr. sequence
-    digitalWrite(H_PULSE, H[QX]);
-    digitalWrite(HQ_PLSE, HQ[QX]);
-
-    delayMicroseconds(ADELAY);
-}
-
-
-void AMIGAVerticalMove() {
-  
-    digitalWrite(V_PULSE, H[QY]);
-    digitalWrite(VQ_PLSE, HQ[QY]);
-    
-    delayMicroseconds(ADELAY);
-}
-
-
-void AMIGA_Left() {
-    
-    // do a move by setting the port
-    AMIGAHorizontalMove();
-
-    // advance in the quadr. sequence
-    QX = (QX >= 3) ? 0 : ++QX;
-    
-}
-
-void AMIGA_Right() {
-    AMIGAHorizontalMove();
-    QX = (QX <= 0) ? 3 : --QX;
-}
-
-void AMIGA_Down() {
-    AMIGAVerticalMove();
-    QY = QY <= 0 ? 3 : --QY;
-}
-
-void AMIGA_Up() {
-    AMIGAVerticalMove();
-    QY = QY >= 3 ? 0 : ++QY;
-}
-
-
-
+#define ADELAY 150 // σε microseconds
 
 void setup() {
-    
-    Serial.begin(57600);
-
-
-    // init ps2 connection
     mouse.initialize();
-  
-    // tell me sth. 'bout you...
-    Serial.println("Hi, I'm a PS2 to amiga mouse adapter! \nConnect");
-    
-    Serial.print("PS2 Data:       D");
-    Serial.println(MOUSE_DATA);
-    
-    Serial.print("PS2 Clock:      D");
-    Serial.println(MOUSE_CLOCK);
-    
 
-    Serial.print("Amiga V_PULSE:  D");
-    Serial.println(V_PULSE);
-    
-    Serial.print("Amiga H_PULSE:  D");
-    Serial.println(H_PULSE);
-    
-    Serial.print("Amiga VQ_PLSE:  D");
-    Serial.println(VQ_PLSE);
-    
-    Serial.print("Amiga HQ_PLSE:  D");
-    Serial.println(HQ_PLSE);
+    // Set pin directions (DDR) as outputs (1)
+    DDRD |= (1 << PD2) | (1 << PD3) | (1 << PD4) | (1 << PD5) | (1 << PD6) | (1 << PD7);
+    DDRB |= (1 << PB0);
 
+    // Initial states: Pulses LOW, Buttons HIGH (since they are active LOW)
+    PORTD &= ~((1 << PD2) | (1 << PD3) | (1 << PD4) | (1 << PD5));
+    PORTD |= (1 << PD6) | (1 << PD7); // LMB, RMB
+    PORTB |= (1 << PB0);              // MMB
 
-    Serial.print("Amiga Left MB:  D");
-    Serial.println(LMB);
-
-    Serial.print("Amiga Right MB: D");
-    Serial.println(RMB);
-
-    Serial.print("Amiga MB 3:     D");
-    Serial.println(MMB);
-
-    Serial.print("Amiga 5V:       5V");
-    Serial.println();
-
-    Serial.print("Amiga GND :     GND");
-    Serial.println();
-
-
-    
-
-    
-    
-    // Set button and quadrature output pins to output
-    pinMode(V_PULSE, OUTPUT);  // V-Pulse
-    pinMode(H_PULSE, OUTPUT);  // H-Pulse
-    pinMode(VQ_PLSE, OUTPUT);  // VQ-pulse
-    pinMode(HQ_PLSE, OUTPUT);  // HQ-pulse
-    pinMode(LMB, OUTPUT);  // LMB
-    pinMode(RMB, OUTPUT);  // RMB
-    pinMode(MMB, OUTPUT);  // MMB
-    
-        
-    // Set quadrature output pins to zero
-    digitalWrite(V_PULSE, LOW);
-    digitalWrite(H_PULSE, LOW);
-    digitalWrite(VQ_PLSE, LOW);
-    digitalWrite(HQ_PLSE, LOW);
-    
-    
-    // Set mouse button output pins to on, coz they are inverted
-    digitalWrite(LMB, HIGH);
-    digitalWrite(RMB, HIGH);
-    digitalWrite(MMB, HIGH);
-    
-    delay(200);
+    _delay_ms(200);
 }
 
+// Fast horizontal movement update (Without PROGMEM & without lookup tables)
+inline void AMIGAHorizontalMove() {
+    if (QX >= 2)            PORTD |= (1 << PD3);  else PORTD &= ~(1 << PD3);
+    if (QX == 1 || QX == 2) PORTD |= (1 << PD5);  else PORTD &= ~(1 << PD5);
 
+    _delay_us(ADELAY);
+}
 
+// Fast vertical movement update
+inline void AMIGAVerticalMove() {
+    if (QY >= 2)            PORTD |= (1 << PD2);  else PORTD &= ~(1 << PD2);
+    if (QY == 1 || QY == 2) PORTD |= (1 << PD4);  else PORTD &= ~(1 << PD4);
+
+    _delay_us(ADELAY);
+}
 
 void loop() {
-
-    
-    // get data from mouse
-    //
     int16_t data[3];
     mouse.report(data);
 
-    
+    // Button handling (Active Low)
+    if (data[0] & 1) PORTD &= ~(1 << PD6); else PORTD |= (1 << PD6); // LMB
+    if (data[0] & 2) PORTD &= ~(1 << PD7); else PORTD |= (1 << PD7); // RMB
+    if (data[0] & 4) PORTB &= ~(1 << PB0); else PORTB |= (1 << PB0); // MMB
 
-    // handle buttons
-    //
-    if( data[0] & 1) 
-      LeftButtonDown();
-    else
-      LeftButtonUp();
-      
-    if( data[0] & 2) 
-      RightButtonDown();
-    else
-      RightButtonUp();
-      
-    if( data[0] & 4) 
-      MiddleButtonDown();
-    else
-      MiddleButtonUp();
+    // Calculate movement steps
+    uint8_t xsteps = abs(data[1]);
+    uint8_t ysteps = abs(data[2]);
+    uint8_t xsign = (data[1] > 0);
+    uint8_t ysign = (data[2] > 0);
 
-
-
-
-    // calc x/y movement
-    //
-    XSTEPS = abs(data[1]);
-    YSTEPS = abs(data[2]);
-    XSIGN = (data[1] > 0 ? 1 : 0) ;
-    YSIGN = (data[2] > 0 ? 1 : 0) ;
-
-
-    
-    // handle x/y movement 
-    //
-    while ((XSTEPS | YSTEPS) != 0) {
-
-        // steps left?
-        if (XSTEPS != 0) {
-          
-            // direction
-            if (XSIGN)
-                AMIGA_Right();
-            else
-                AMIGA_Left();
-
-            // decrease steps    
-            XSTEPS--;
+    // X/Y Movement handling
+    while ((xsteps | ysteps) != 0) {
+        if (xsteps != 0) {
+            if (xsign) {
+                QX = (QX <= 0) ? 3 : (QX - 1);
+                AMIGAHorizontalMove();
+            } else {
+                QX = (QX >= 3) ? 0 : (QX + 1);
+                AMIGAHorizontalMove();
+            }
+            xsteps--;
         }
 
-        
-        if (YSTEPS != 0) {
-            if (YSIGN)
-                AMIGA_Up(); 
-            else
-               AMIGA_Down();
-            YSTEPS--;
+        if (ysteps != 0) {
+            if (ysign) {
+                QY = (QY >= 3) ? 0 : (QY + 1);
+                AMIGAVerticalMove();
+            } else {
+                QY = (QY <= 0) ? 3 : (QY - 1);
+                AMIGAVerticalMove();
+            }
+            ysteps--;
         }
-        
-    }    
+    }
 }
-
-
-
-
-
-
