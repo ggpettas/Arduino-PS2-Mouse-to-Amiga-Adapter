@@ -1,6 +1,15 @@
 # Arduino-PS2-Mouse-to-Amiga-Adapter
 Connect a PS2 (or compatible USB Mouse) to an Amiga
 
+Inline code for faster execution, remove arduino calls, fix glitch when change direction of mouse
+OPTIMIZATION & FIXes:
+  1. INLINE EXECUTION: Functions are marked 'inline' and use direct PORT register 
+     manipulation instead of slow digitalwrite() calls for maximum speed.
+  2. REMOVAL OF ARDUINO CALLS: Replaced the standard abs() function with a fast 
+     inline ternary operator to eliminate function call overhead and dependencies.
+  3. DIRECTION-CHANGE GLITCH FIX: State variables (QX/QY) are updated BEFORE driving 
+     the physical pins. This keeps pins and states perfectly synchronized, eliminating 
+     the 1-pixel reverse-direction jitter when reversing mouse travel.
 
 ## You will need:
 
